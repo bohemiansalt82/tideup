@@ -1,0 +1,14 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "bitewind-web",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "cd '/private/tmp/claude-501/-Volumes-AI-Lab-bitewind/550d4e5c-3b7f-4085-9d4b-522aaa770efc/scratchpad/webbuild' && python3 -m http.server \"$PORT\""
+      ],
+      "autoPort": true
+    }
+  ]
+}

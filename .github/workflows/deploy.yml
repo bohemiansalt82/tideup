@@ -1,0 +1,57 @@
+name: Deploy web to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      # API 키 설정 파일 생성.
+      # GitHub Secrets(DATA_GO_KR_KEY, KAKAO_REST_KEY)가 있으면 실데이터,
+      # 없으면 빈 값 → 샘플(목업) 모드로 안전하게 배포된다.
+      - name: Create API keys config
+        run: |
+          mkdir -p assets/config
+          cat > assets/config/api_keys.json <<JSON
+          {
+            "khoaServiceKey": "",
+            "kmaServiceKey": "",
+            "dataGoKrServiceKey": "${{ secrets.DATA_GO_KR_KEY }}",
+            "kakaoRestApiKey": "${{ secrets.KAKAO_REST_KEY }}"
+          }
+          JSON
+
+      - run: flutter pub get
+      - run: flutter build web --release --base-href /tideup/
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/web
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
