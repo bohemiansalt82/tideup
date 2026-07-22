@@ -1,6 +1,6 @@
 {
-    "name": "bitewind",
-    "short_name": "bitewind",
+    "name": "TideUp",
+    "short_name": "TideUp",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

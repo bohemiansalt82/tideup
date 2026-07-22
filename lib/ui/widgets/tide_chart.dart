@@ -264,9 +264,11 @@ class _TideStepPainter extends CustomPainter {
             fontFamily: fontFamily, color: inkTertiary, fontSize: 10),
       );
       tp.layout();
+      // 눈금선 위가 아니라 셀(컬럼) 가운데에 — 아래 레인 값들과 정렬
       tp.paint(
           canvas,
-          Offset((x - tp.width / 2).clamp(0, size.width - tp.width),
+          Offset((x + _pxPerHour / 2 - tp.width / 2)
+              .clamp(0, size.width - tp.width),
               chartBottom + 2));
     }
 
@@ -490,9 +492,10 @@ class _TideStepPainter extends CustomPainter {
         }
       }
       final x = toX(now);
+      // 조위 라인 차트 영역까지만 (아래 레인들은 관통하지 않음)
       canvas.drawLine(
         Offset(x, _chartTop - 6),
-        Offset(x, laneTempTop + _laneTempH - 4),
+        Offset(x, chartBottom),
         Paint()
           ..color = ink.withValues(alpha: 0.55)
           ..strokeWidth = 1.2,

@@ -208,7 +208,7 @@ class _HomePageState extends State<HomePage> {
               children: [
                 Padding(
                   padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
-                  child: Text('물때', style: displayMd),
+                  child: Text('TideUp', style: displayMd.copyWith(fontSize: 20)),
                 ),
                 if (favs == null)
                   const Expanded(
