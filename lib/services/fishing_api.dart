@@ -37,10 +37,22 @@ class FishingApi {
   static String _fmtDate(DateTime d) =>
       '${d.year}${d.month.toString().padLeft(2, '0')}${d.day.toString().padLeft(2, '0')}';
 
+  Future<List<Map<String, dynamic>>>? _inflight;
+
   Future<List<Map<String, dynamic>>> _fetchAll(DateTime date) async {
     final dateStr = _fmtDate(date);
     if (_cachedDate == dateStr && _rows.isNotEmpty) return _rows;
+    // 여러 지점이 동시에 호출해도 페이지네이션은 한 번만 (중복 폭주 방지)
+    if (_inflight != null) return _inflight!;
+    _inflight = _doFetchAll(dateStr);
+    try {
+      return await _inflight!;
+    } finally {
+      _inflight = null;
+    }
+  }
 
+  Future<List<Map<String, dynamic>>> _doFetchAll(String dateStr) async {
     // numOfRows는 300까지만 허용된다 — 전체(약 1,400행)를 페이지로 나눠 받는다.
     final all = <Map<String, dynamic>>[];
     var page = 1;
