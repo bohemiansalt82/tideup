@@ -24,23 +24,15 @@ jobs:
         with:
           channel: stable
 
-      # API 키 설정 파일 생성.
-      # GitHub Secrets(DATA_GO_KR_KEY, KAKAO_REST_KEY)가 있으면 실데이터,
-      # 없으면 빈 값 → 샘플(목업) 모드로 안전하게 배포된다.
-      - name: Create API keys config
-        run: |
-          mkdir -p assets/config
-          cat > assets/config/api_keys.json <<JSON
-          {
-            "khoaServiceKey": "",
-            "kmaServiceKey": "",
-            "dataGoKrServiceKey": "${{ secrets.DATA_GO_KR_KEY }}",
-            "kakaoRestApiKey": "${{ secrets.KAKAO_REST_KEY }}"
-          }
-          JSON
-
       - run: flutter pub get
-      - run: flutter build web --release --base-href /tideup/
+
+      # API 키는 빌드 시점에 코드로 주입한다(--dart-define).
+      # Secrets가 없으면 빈 값 → 샘플(목업) 모드로 안전하게 배포.
+      - name: Build web
+        run: |
+          flutter build web --release --base-href /tideup/ \
+            --dart-define=DATA_GO_KR_KEY="${{ secrets.DATA_GO_KR_KEY }}" \
+            --dart-define=KAKAO_REST_KEY="${{ secrets.KAKAO_REST_KEY }}"
 
       - uses: actions/upload-pages-artifact@v3
         with:

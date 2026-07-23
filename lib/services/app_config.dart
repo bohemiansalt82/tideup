@@ -33,6 +33,24 @@ class AppConfig {
   bool get hasKakaoKey => kakaoRestApiKey.isNotEmpty;
 
   static Future<AppConfig> load() async {
+    // 1) 컴파일 타임 주입 (웹 배포용 — `flutter build --dart-define=...`).
+    //    빌드에 값이 박혀서 런타임 에셋 로딩/캐시 이슈가 없다.
+    const dgk = String.fromEnvironment('DATA_GO_KR_KEY');
+    const kakao = String.fromEnvironment('KAKAO_REST_KEY');
+    const kma = String.fromEnvironment('KMA_KEY');
+    const khoa = String.fromEnvironment('KHOA_KEY');
+    if (dgk.isNotEmpty ||
+        kakao.isNotEmpty ||
+        kma.isNotEmpty ||
+        khoa.isNotEmpty) {
+      return AppConfig(
+        khoaServiceKey: khoa.trim(),
+        kmaServiceKey: kma.trim(),
+        dataGoKrServiceKey: dgk.trim(),
+        kakaoRestApiKey: kakao.trim(),
+      );
+    }
+    // 2) 로컬 개발용 — assets/config/api_keys.json 에서 읽기.
     try {
       final raw = await rootBundle.loadString('assets/config/api_keys.json');
       final j = json.decode(raw) as Map<String, dynamic>;
