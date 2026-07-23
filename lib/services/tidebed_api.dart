@@ -52,17 +52,33 @@ class TideBedApi {
   /// 실패 시 한 번 더 시도한다.
   Future<TideBedDay> fetchDay(double lat, double lon, DateTime date,
       {int min = 10, double? fallbackLat, double? fallbackLon}) async {
-    try {
-      return await _fetchRaw(lat, lon, date, min);
-    } on TideBedException {
-      if (fallbackLat != null &&
-          fallbackLon != null &&
-          (fallbackLat.toStringAsFixed(2) != lat.toStringAsFixed(2) ||
-              fallbackLon.toStringAsFixed(2) != lon.toStringAsFixed(2))) {
-        return await _fetchRaw(fallbackLat, fallbackLon, date, min);
-      }
-      rethrow;
+    // 시도할 좌표 목록: 지점 좌표 → (다르면) 최근접 관측소 좌표
+    final coords = <(double, double)>[(lat, lon)];
+    if (fallbackLat != null &&
+        fallbackLon != null &&
+        (fallbackLat.toStringAsFixed(2) != lat.toStringAsFixed(2) ||
+            fallbackLon.toStringAsFixed(2) != lon.toStringAsFixed(2))) {
+      coords.add((fallbackLat, fallbackLon));
     }
+
+    TideBedException? lastErr;
+    for (final (clat, clon) in coords) {
+      // 일시적 실패(rate limit·네트워크)는 backoff 재시도.
+      // 파라미터 무효(동해 등 미지원)는 재시도 무의미 → 다음 좌표로.
+      for (var attempt = 0; attempt < 3; attempt++) {
+        try {
+          return await _fetchRaw(clat, clon, date, min);
+        } on TideBedException catch (e) {
+          lastErr = e;
+          if (e.message.contains('INVALID')) break;
+          if (attempt < 2) {
+            await Future.delayed(
+                Duration(milliseconds: 500 * (attempt + 1)));
+          }
+        }
+      }
+    }
+    throw lastErr ?? TideBedException('unknown');
   }
 
   Future<TideBedDay> _fetchRaw(
