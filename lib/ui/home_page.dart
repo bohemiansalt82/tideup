@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
@@ -45,8 +46,9 @@ class _HomePageState extends State<HomePage> {
   Station? _myLocation; // GPS 기반 "내 위치" 지점 (관측소 20km 이내일 때만)
   String _query = '';
   final _searchController = TextEditingController();
-  late final GeocodingApi _geocoder =
-      GeocodingApi(kakaoRestApiKey: widget.repository.config.kakaoRestApiKey);
+  late final GeocodingApi _geocoder = GeocodingApi(
+    kakaoRestApiKey: widget.repository.config.kakaoRestApiKey,
+  );
   Timer? _debounce;
   List<_RemoteHit> _remote = const [];
   bool _searching = false;
@@ -81,8 +83,10 @@ class _HomePageState extends State<HomePage> {
           timeLimit: Duration(seconds: 10),
         ),
       );
-      final (nearest, dist) =
-          widget.repository.nearestStation(pos.latitude, pos.longitude);
+      final (nearest, dist) = widget.repository.nearestStation(
+        pos.latitude,
+        pos.longitude,
+      );
       if (dist > 20) return; // 바다에서 너무 멀면 표시하지 않음
       if (mounted) {
         setState(() {
@@ -137,20 +141,21 @@ class _HomePageState extends State<HomePage> {
     if (!mounted || q != _query) return; // 뒤늦게 도착한 응답 무시
     final hits = <_RemoteHit>[];
     for (final g in found) {
-      final (nearest, dist) =
-          widget.repository.nearestStation(g.lat, g.lon);
-      hits.add(_RemoteHit(
-        Station(
-          id: 'G_${g.lat.toStringAsFixed(4)}_${g.lon.toStringAsFixed(4)}',
-          code: nearest.code,
-          name: g.name,
-          type: g.type,
-          lat: g.lat,
-          lon: g.lon,
+      final (nearest, dist) = widget.repository.nearestStation(g.lat, g.lon);
+      hits.add(
+        _RemoteHit(
+          Station(
+            id: 'G_${g.lat.toStringAsFixed(4)}_${g.lon.toStringAsFixed(4)}',
+            code: nearest.code,
+            name: g.name,
+            type: g.type,
+            lat: g.lat,
+            lon: g.lon,
+          ),
+          dist,
+          g.region,
         ),
-        dist,
-        g.region,
-      ));
+      );
     }
     setState(() {
       _remote = hits;
@@ -190,8 +195,7 @@ class _HomePageState extends State<HomePage> {
         : all
               .where(
                 (s) =>
-                    s.name.contains(_query) &&
-                    !favs.any((f) => f.id == s.id),
+                    s.name.contains(_query) && !favs.any((f) => f.id == s.id),
               )
               .toList();
 
@@ -208,12 +212,14 @@ class _HomePageState extends State<HomePage> {
               children: [
                 Padding(
                   padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
-                  child: Text('TideUp', style: displayMd.copyWith(fontSize: 20)),
+                  child: Text(
+                    'TideUp',
+                    style: displayMd.copyWith(fontSize: 20),
+                  ),
                 ),
                 if (favs == null)
                   const Expanded(
-                    child:
-                        Center(child: CircularProgressIndicator(color: ink)),
+                    child: Center(child: CircularProgressIndicator(color: ink)),
                   )
                 else if (_query.isNotEmpty)
                   Expanded(child: _buildSearchResults(locals))
@@ -238,48 +244,67 @@ class _HomePageState extends State<HomePage> {
       bottom: (insets > 0 ? insets + 10 : safeBottom + 14),
       child: Material(
         color: Colors.transparent,
-        child: Container(
+        child: DecoratedBox(
+          // 그림자는 blur 클립 바깥에 둔다 (클립되면 안 보이므로)
           decoration: BoxDecoration(
-            color: surface1,
             borderRadius: BorderRadius.circular(radiusXl),
-            border: Border.all(color: hairline),
             boxShadow: [
               BoxShadow(
-                color: ink.withValues(alpha: 0.10),
-                blurRadius: 16,
+                color: ink.withValues(alpha: 0.12),
+                blurRadius: 18,
                 offset: const Offset(0, 4),
               ),
             ],
           ),
-          child: TextField(
-            controller: _searchController,
-            onChanged: _onQueryChanged,
-            style: body,
-            cursorColor: ink,
-            textInputAction: TextInputAction.search,
-            decoration: InputDecoration(
-              hintText: '지역·해변·선착장 검색 (예: 해운대, 궁평항…)',
-              hintStyle: body.copyWith(color: inkTertiary),
-              prefixIcon: const Icon(Icons.search, color: inkSubtle),
-              suffixIcon: _query.isEmpty
-                  ? null
-                  : IconButton(
-                      icon: const Icon(Icons.close, color: inkSubtle, size: 20),
-                      onPressed: () {
-                        setState(() {
-                          _query = '';
-                          _remote = const [];
-                          _searchController.clear();
-                        });
-                        FocusScope.of(context).unfocus();
-                      },
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(radiusXl),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+              child: Container(
+                decoration: BoxDecoration(
+                  // 반투명 흰색 — 뒤 배경이 흐릿하게 비친다
+                  color: surface1.withValues(alpha: 0.72),
+                  borderRadius: BorderRadius.circular(radiusXl),
+                  border: Border.all(color: hairline.withValues(alpha: 0.8)),
+                ),
+                child: TextField(
+                  controller: _searchController,
+                  onChanged: _onQueryChanged,
+                  style: body,
+                  cursorColor: ink,
+                  textInputAction: TextInputAction.search,
+                  decoration: InputDecoration(
+                    hintText: '지역·해변·선착장 검색 (예: 해운대, 궁평항…)',
+                    hintStyle: body.copyWith(color: inkTertiary),
+                    prefixIcon: const Icon(Icons.search, color: inkSubtle),
+                    suffixIcon: _query.isEmpty
+                        ? null
+                        : IconButton(
+                            icon: const Icon(
+                              Icons.close,
+                              color: inkSubtle,
+                              size: 20,
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                _query = '';
+                                _remote = const [];
+                                _searchController.clear();
+                              });
+                              FocusScope.of(context).unfocus();
+                            },
+                          ),
+                    filled: false,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: 14,
                     ),
-              filled: false,
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 4, vertical: 14),
-              border: InputBorder.none,
-              enabledBorder: InputBorder.none,
-              focusedBorder: InputBorder.none,
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                  ),
+                ),
+              ),
             ),
           ),
         ),
@@ -292,26 +317,28 @@ class _HomePageState extends State<HomePage> {
 
     for (final s in locals) {
       final refName = widget.repository.stationNameOf(s.code) ?? s.code;
-      rows.add(ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 4),
-        title: Row(
-          children: [
-            Flexible(child: Text(s.name, style: body)),
-            const SizedBox(width: 8),
-            _TypeChip(type: s.type),
-          ],
+      rows.add(
+        ListTile(
+          contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+          title: Row(
+            children: [
+              Flexible(child: Text(s.name, style: body)),
+              const SizedBox(width: 8),
+              _TypeChip(type: s.type),
+            ],
+          ),
+          subtitle: Text(
+            s.isPlace ? '조석 기준: $refName 관측소' : s.code,
+            style: caption.copyWith(color: inkSubtle),
+          ),
+          trailing: IconButton(
+            icon: const Icon(Icons.add_circle_outline, color: ink),
+            tooltip: '리스트에 추가',
+            onPressed: () => _add(s),
+          ),
+          onTap: () => _openDetail(s),
         ),
-        subtitle: Text(
-          s.isPlace ? '조석 기준: $refName 관측소' : s.code,
-          style: caption.copyWith(color: inkSubtle),
-        ),
-        trailing: IconButton(
-          icon: const Icon(Icons.add_circle_outline, color: ink),
-          tooltip: '리스트에 추가',
-          onPressed: () => _add(s),
-        ),
-        onTap: () => _openDetail(s),
-      ));
+      );
     }
 
     // 지오코딩(지도 검색) 결과 — 내장 목록과 이름이 겹치면 생략
@@ -319,22 +346,29 @@ class _HomePageState extends State<HomePage> {
         .where((h) => !locals.any((s) => s.name == h.station.name))
         .toList();
     if (remote.isNotEmpty || _searching) {
-      rows.add(Padding(
-        padding: const EdgeInsets.fromLTRB(4, 16, 4, 4),
-        child: Text('지도 검색', style: eyebrow),
-      ));
+      rows.add(
+        Padding(
+          padding: const EdgeInsets.fromLTRB(4, 16, 4, 4),
+          child: Text('지도 검색', style: eyebrow),
+        ),
+      );
     }
     if (_searching) {
-      rows.add(const Padding(
-        padding: EdgeInsets.all(16),
-        child: Center(
-          child: SizedBox(
-            width: 18,
-            height: 18,
-            child: CircularProgressIndicator(color: inkSubtle, strokeWidth: 2),
+      rows.add(
+        const Padding(
+          padding: EdgeInsets.all(16),
+          child: Center(
+            child: SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(
+                color: inkSubtle,
+                strokeWidth: 2,
+              ),
+            ),
           ),
         ),
-      ));
+      );
     }
     for (final h in remote) {
       final s = h.station;
@@ -342,38 +376,39 @@ class _HomePageState extends State<HomePage> {
       final distText = h.distKm < 10
           ? h.distKm.toStringAsFixed(1)
           : h.distKm.round().toString();
-      rows.add(ListTile(
-        enabled: h.addable,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 4),
-        title: Row(
-          children: [
-            Flexible(
-              child: Text(
-                s.name,
-                style: body.copyWith(color: h.addable ? ink : inkTertiary),
-                overflow: TextOverflow.ellipsis,
+      rows.add(
+        ListTile(
+          enabled: h.addable,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+          title: Row(
+            children: [
+              Flexible(
+                child: Text(
+                  s.name,
+                  style: body.copyWith(color: h.addable ? ink : inkTertiary),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-            ),
-            const SizedBox(width: 8),
-            _TypeChip(type: s.type),
-          ],
+              const SizedBox(width: 8),
+              _TypeChip(type: s.type),
+            ],
+          ),
+          subtitle: Text(
+            h.addable
+                ? '${h.region.isEmpty ? '' : '${h.region} · '}조석 기준: $refName 관측소 · ${distText}km'
+                : '${h.region.isEmpty ? '' : '${h.region} · '}가까운 관측소($refName)가 ${distText}km — 20km 밖이라 추가할 수 없어요',
+            style: caption.copyWith(color: h.addable ? inkSubtle : inkTertiary),
+          ),
+          trailing: h.addable
+              ? IconButton(
+                  icon: const Icon(Icons.add_circle_outline, color: ink),
+                  tooltip: '리스트에 추가',
+                  onPressed: () => _add(s),
+                )
+              : const Icon(Icons.block, color: inkTertiary, size: 18),
+          onTap: h.addable ? () => _openDetail(s) : null,
         ),
-        subtitle: Text(
-          h.addable
-              ? '${h.region.isEmpty ? '' : '${h.region} · '}조석 기준: $refName 관측소 · ${distText}km'
-              : '${h.region.isEmpty ? '' : '${h.region} · '}가까운 관측소($refName)가 ${distText}km — 20km 밖이라 추가할 수 없어요',
-          style: caption.copyWith(
-              color: h.addable ? inkSubtle : inkTertiary),
-        ),
-        trailing: h.addable
-            ? IconButton(
-                icon: const Icon(Icons.add_circle_outline, color: ink),
-                tooltip: '리스트에 추가',
-                onPressed: () => _add(s),
-              )
-            : const Icon(Icons.block, color: inkTertiary, size: 18),
-        onTap: h.addable ? () => _openDetail(s) : null,
-      ));
+      );
     }
 
     if (rows.isEmpty) {
@@ -397,75 +432,75 @@ class _HomePageState extends State<HomePage> {
       backgroundColor: surface1,
       onRefresh: _refresh,
       child: ReorderableListView.builder(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 96),
-      itemCount: favs.length,
-      buildDefaultDragHandles: false,
-      header: _myLocation == null
-          ? null
-          : Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 96),
+        itemCount: favs.length,
+        buildDefaultDragHandles: false,
+        header: _myLocation == null
+            ? null
+            : Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _StationSummaryCard(
+                  repository: widget.repository,
+                  station: _myLocation!,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => StationPage(
+                        repository: widget.repository,
+                        station: _myLocation!,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+        proxyDecorator: (child, _, _) => child,
+        onReorderItem: (oldIndex, newIndex) async {
+          setState(() {
+            final item = favs.removeAt(oldIndex);
+            favs.insert(newIndex, item);
+          });
+          await widget.repository.saveFavorites(favs);
+        },
+        itemBuilder: (context, i) {
+          final s = favs[i];
+          return ReorderableDelayedDragStartListener(
+            key: ValueKey(s.id),
+            index: i,
+            child: Padding(
               padding: const EdgeInsets.only(bottom: 12),
-              child: _StationSummaryCard(
-                repository: widget.repository,
-                station: _myLocation!,
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => StationPage(
-                      repository: widget.repository,
-                      station: _myLocation!,
+              child: Dismissible(
+                key: ValueKey('dismiss-${s.id}'),
+                direction: favs.length > 1
+                    ? DismissDirection.endToStart
+                    : DismissDirection.none,
+                background: Container(
+                  decoration: BoxDecoration(
+                    color: semanticError,
+                    borderRadius: BorderRadius.circular(radiusLg),
+                  ),
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.only(right: 20),
+                  child: const Icon(Icons.delete, color: onPrimary),
+                ),
+                onDismissed: (_) async {
+                  setState(() => favs.removeAt(i));
+                  await widget.repository.saveFavorites(favs);
+                },
+                child: _StationSummaryCard(
+                  repository: widget.repository,
+                  station: s,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => StationPage(
+                        repository: widget.repository,
+                        station: s,
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
-      proxyDecorator: (child, _, _) => child,
-      onReorderItem: (oldIndex, newIndex) async {
-        setState(() {
-          final item = favs.removeAt(oldIndex);
-          favs.insert(newIndex, item);
-        });
-        await widget.repository.saveFavorites(favs);
-      },
-      itemBuilder: (context, i) {
-        final s = favs[i];
-        return ReorderableDelayedDragStartListener(
-          key: ValueKey(s.id),
-          index: i,
-          child: Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Dismissible(
-              key: ValueKey('dismiss-${s.id}'),
-              direction: favs.length > 1
-                  ? DismissDirection.endToStart
-                  : DismissDirection.none,
-              background: Container(
-                decoration: BoxDecoration(
-                  color: semanticError,
-                  borderRadius: BorderRadius.circular(radiusLg),
-                ),
-                alignment: Alignment.centerRight,
-                padding: const EdgeInsets.only(right: 20),
-                child: const Icon(Icons.delete, color: onPrimary),
-              ),
-              onDismissed: (_) async {
-                setState(() => favs.removeAt(i));
-                await widget.repository.saveFavorites(favs);
-              },
-              child: _StationSummaryCard(
-                repository: widget.repository,
-                station: s,
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => StationPage(
-                      repository: widget.repository,
-                      station: s,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        );
-      },
+          );
+        },
       ),
     );
   }
@@ -506,8 +541,7 @@ class _StationSummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
-    final multae =
-        multaeFor(now, systemForLocation(station.lat, station.lon));
+    final multae = multaeFor(now, systemForLocation(station.lat, station.lon));
 
     return Material(
       color: surface1,
@@ -528,8 +562,12 @@ class _StationSummaryCard extends StatelessWidget {
               // 현재 시각대의 날씨
               HourlyWeather? cur;
               if (data != null) {
-                final hourStart =
-                    DateTime(now.year, now.month, now.day, now.hour);
+                final hourStart = DateTime(
+                  now.year,
+                  now.month,
+                  now.day,
+                  now.hour,
+                );
                 for (final h in data.hourly) {
                   if (!h.time.isBefore(hourStart)) {
                     cur = h;
@@ -538,8 +576,10 @@ class _StationSummaryCard extends StatelessWidget {
                 }
               }
               final night = now.hour < 6 || now.hour >= 20;
-              final (wxIcon, wxColor) =
-                  weatherIcon(cur?.weatherCode, night: night);
+              final (wxIcon, wxColor) = weatherIcon(
+                cur?.weatherCode,
+                night: night,
+              );
 
               return Row(
                 children: [
@@ -580,14 +620,18 @@ class _StationSummaryCard extends StatelessWidget {
                       children: [
                         Icon(wxIcon, color: wxColor, size: 22),
                         if (cur.tempC != null)
-                          Text('${cur.tempC!.round()}\u00b0',
-                              style: caption.copyWith(color: inkMuted)),
+                          Text(
+                            '${cur.tempC!.round()}\u00b0',
+                            style: caption.copyWith(color: inkMuted),
+                          ),
                       ],
                     ),
                     const SizedBox(width: 10),
                   ],
-                  Text(multae.label,
-                      style: displayMd.copyWith(fontSize: 34, height: 1.0)),
+                  Text(
+                    multae.label,
+                    style: displayMd.copyWith(fontSize: 34, height: 1.0),
+                  ),
                   const SizedBox(width: 6),
                   const Icon(Icons.chevron_right, color: inkTertiary, size: 20),
                 ],
@@ -601,41 +645,53 @@ class _StationSummaryCard extends StatelessWidget {
 
   /// 오늘 만조/간조를 2개씩 끊어 줄바꿈. 지난 건 흐리게, 다음 건 진하게.
   Widget _tideEventLines(
-      DateTime now, StationDayData? data, AsyncSnapshot snap) {
+    DateTime now,
+    StationDayData? data,
+    AsyncSnapshot snap,
+  ) {
     if (data == null) {
       return Text(
-        snap.hasError ? '\ubd88\ub7ec\uc624\uae30 \uc2e4\ud328' : '\ubd88\ub7ec\uc624\ub294 \uc911\u2026',
+        snap.hasError
+            ? '\ubd88\ub7ec\uc624\uae30 \uc2e4\ud328'
+            : '\ubd88\ub7ec\uc624\ub294 \uc911\u2026',
         style: bodySm.copyWith(color: inkTertiary),
       );
     }
     final today = DateTime(now.year, now.month, now.day);
     final events = data.tideEvents
-        .where((e) =>
-            e.time.year == today.year &&
-            e.time.month == today.month &&
-            e.time.day == today.day)
+        .where(
+          (e) =>
+              e.time.year == today.year &&
+              e.time.month == today.month &&
+              e.time.day == today.day,
+        )
         .toList();
     if (events.isEmpty) {
-      return Text('\uc608\ubcf4 \uc5c6\uc74c', style: bodySm.copyWith(color: inkTertiary));
+      return Text(
+        '\uc608\ubcf4 \uc5c6\uc74c',
+        style: bodySm.copyWith(color: inkTertiary),
+      );
     }
     final fmt = DateFormat('HH:mm');
     Widget chip(TideEvent e) => Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(e.isHigh ? Icons.arrow_upward : Icons.arrow_downward,
-                size: 12, color: e.isHigh ? reportBlue : reportOrange),
-            const SizedBox(width: 1),
-            Text(
-              fmt.format(e.time),
-              style: bodySm.copyWith(
-                color: e.time.isAfter(now) ? ink : inkTertiary,
-                fontWeight:
-                    e.time.isAfter(now) ? FontWeight.w600 : FontWeight.w400,
-                fontFeatures: const [FontFeature.tabularFigures()],
-              ),
-            ),
-          ],
-        );
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          e.isHigh ? Icons.arrow_upward : Icons.arrow_downward,
+          size: 12,
+          color: e.isHigh ? reportBlue : reportOrange,
+        ),
+        const SizedBox(width: 1),
+        Text(
+          fmt.format(e.time),
+          style: bodySm.copyWith(
+            color: e.time.isAfter(now) ? ink : inkTertiary,
+            fontWeight: e.time.isAfter(now) ? FontWeight.w600 : FontWeight.w400,
+            fontFeatures: const [FontFeature.tabularFigures()],
+          ),
+        ),
+      ],
+    );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

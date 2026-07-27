@@ -40,6 +40,28 @@ class BiteWindApp extends StatelessWidget {
           surface: t.canvas,
         ),
       ),
+      // 모바일 앱 — 넓은 화면(웹/태블릿)에선 최대 폭 500으로 가운데 정렬.
+      builder: (context, child) {
+        final size = MediaQuery.of(context).size;
+        final contentW = size.width < 500 ? size.width : 500.0;
+        return SizedBox(
+          width: size.width,
+          height: size.height,
+          child: ColoredBox(
+            color: t.canvas,
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: ClipRect(
+                child: SizedBox(
+                  width: contentW,
+                  height: size.height,
+                  child: child,
+                ),
+              ),
+            ),
+          ),
+        );
+      },
       home: HomePage(repository: repository),
     );
   }
