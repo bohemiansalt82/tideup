@@ -130,11 +130,12 @@ Future<void> _openNaver(BuildContext context, NearbyPlace p) {
 
 Future<void> _openKakao(BuildContext context, NearbyPlace p) {
   final name = Uri.encodeComponent(p.name);
+  // kakaomap:// 커스텀 스킴은 잘 안 열려서, 웹·모바일(앱 설치 시 자동 실행)
+  // 모두 동작하는 https 링크를 바로 사용한다.
   return _launch(
     context,
-    Uri.parse('kakaomap://look?p=${p.lat},${p.lon}'),
-    fallback:
-        Uri.parse('https://map.kakao.com/link/map/$name,${p.lat},${p.lon}'),
+    Uri.parse('https://map.kakao.com/link/map/$name,${p.lat},${p.lon}'),
+    failMessage: '카카오맵을 열 수 없어요',
   );
 }
 
