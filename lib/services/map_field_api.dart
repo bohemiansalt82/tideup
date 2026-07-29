@@ -41,8 +41,8 @@ class MapFieldApi {
   /// 한국 연안을 덮는 격자 좌표.
   static List<(double, double)> _grid() {
     final pts = <(double, double)>[];
-    for (var lat = 33.5; lat <= 38.6; lat += 0.85) {
-      for (var lon = 124.8; lon <= 130.2; lon += 0.85) {
+    for (var lat = 33.2; lat <= 38.8; lat += 0.6) {
+      for (var lon = 124.6; lon <= 130.4; lon += 0.6) {
         pts.add((
           double.parse(lat.toStringAsFixed(2)),
           double.parse(lon.toStringAsFixed(2)),
@@ -152,7 +152,8 @@ class MapFieldApi {
     if (spd == null || d == null) continue;
     final dLat = lat - p.lat, dLon = (lon - p.lon) * 0.8;
     final dist2 = dLat * dLat + dLon * dLon;
-    final w = 1.0 / (dist2 + 0.02);
+    // 먼 격자는 빨리 감쇠(제곱) — 지역별 흐름 차이가 살아난다.
+    final w = 1.0 / (dist2 * dist2 + 0.0008);
     // 풍향(불어오는 방향)을 벡터로: u=동, v=북 (가는 방향 기준)
     final ang = (d + 180) * math.pi / 180;
     wu += w * spd * math.sin(ang);

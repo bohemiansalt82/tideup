@@ -69,16 +69,32 @@ class _MapViewPageState extends State<MapViewPage>
 
   void _seedParticles() {
     _particles.clear();
-    for (var i = 0; i < 170; i++) {
-      _particles.add(_randomParticle());
+    for (var i = 0; i < 260; i++) {
+      final p = _randomParticle();
+      p.age = _rng.nextInt(p.life).toDouble(); // 수명 분산 → 깜빡임 방지
+      _particles.add(p);
     }
   }
 
-  _P _randomParticle() => _P(
-        lat: 32.8 + _rng.nextDouble() * 6.4,
-        lon: 123.8 + _rng.nextDouble() * 7.2,
-        life: 40 + _rng.nextInt(90),
-      );
+  _P _randomParticle() {
+    final p = _P(
+      lat: 32.8 + _rng.nextDouble() * 6.4,
+      lon: 123.8 + _rng.nextDouble() * 7.2,
+      life: 70 + _rng.nextInt(110),
+    );
+    p.trail.add(LatLng(p.lat, p.lon));
+    return p;
+  }
+
+  void _resetParticle(_P p) {
+    p.lat = 32.8 + _rng.nextDouble() * 6.4;
+    p.lon = 123.8 + _rng.nextDouble() * 7.2;
+    p.age = 0;
+    p.life = 70 + _rng.nextInt(110);
+    p.trail
+      ..clear()
+      ..add(LatLng(p.lat, p.lon));
+  }
 
   void _onTick() {
     if (_field == null || _layer != _Layer.wind) return;
@@ -90,33 +106,28 @@ class _MapViewPageState extends State<MapViewPage>
     final pts = _field!.points;
     for (final p in _particles) {
       final w = interpolateWind(pts, _hour, p.lat, p.lon);
-      p.plat = p.lat;
-      p.plon = p.lon;
       if (w != null) {
         final (speed, dirFrom) = w;
         p.spd = speed;
         final angTo = (dirFrom + 180) * math.pi / 180;
         final u = speed * math.sin(angTo); // 동
         final v = speed * math.cos(angTo); // 북
-        final k = 0.09 * dt; // 이동 스케일
+        final k = 0.16 * dt; // 이동 스케일
         p.lat += v * k;
         p.lon += u * k / math.cos(p.lat * math.pi / 180);
       } else {
         p.spd = 0;
       }
+      // 꼬리 좌표 누적 (윈디처럼 흐름 선을 남긴다)
+      p.trail.add(LatLng(p.lat, p.lon));
+      if (p.trail.length > 18) p.trail.removeAt(0);
       p.age += dt * 30;
       if (p.age > p.life ||
           p.lat < 32.5 ||
           p.lat > 39.6 ||
           p.lon < 123.4 ||
           p.lon > 131.6) {
-        final np = _randomParticle();
-        p.lat = np.lat;
-        p.lon = np.lon;
-        p.plat = p.lat;
-        p.plon = p.lon;
-        p.age = 0;
-        p.life = np.life;
+        _resetParticle(p);
       }
     }
     setState(() {}); // 오버레이 리페인트
@@ -224,22 +235,37 @@ class _MapViewPageState extends State<MapViewPage>
 // ── 바람 입자 ──────────────────────────────────────────
 class _P {
   double lat, lon;
-  double plat = 0, plon = 0;
   double age = 0;
   int life;
   double spd = 0;
-  _P({required this.lat, required this.lon, required this.life}) {
-    plat = lat;
-    plon = lon;
-  }
+  final List<LatLng> trail = []; // 오래된→최신 좌표
+  _P({required this.lat, required this.lon, required this.life});
 }
 
-Color _windColor(double s) {
-  if (s < 3) return const Color(0xFFBFD3E6);
-  if (s < 7) return const Color(0xFF5AA9E6);
-  if (s < 12) return const Color(0xFFF6C445);
-  return const Color(0xFFFF5D73);
+Color _lerpStops(List<(double, Color)> stops, double v) {
+  if (v <= stops.first.$1) return stops.first.$2;
+  if (v >= stops.last.$1) return stops.last.$2;
+  for (var i = 0; i < stops.length - 1; i++) {
+    final a = stops[i], b = stops[i + 1];
+    if (v >= a.$1 && v <= b.$1) {
+      return Color.lerp(a.$2, b.$2, (v - a.$1) / (b.$1 - a.$1))!;
+    }
+  }
+  return stops.last.$2;
 }
+
+// 풍속(m/s) → 윈디풍 그라데이션.
+const _windStops = [
+  (0.0, Color(0xFF7EC8FF)),
+  (3.0, Color(0xFF4FE3C4)),
+  (6.0, Color(0xFF86E24C)),
+  (9.0, Color(0xFFF2D33E)),
+  (12.0, Color(0xFFF39B34)),
+  (16.0, Color(0xFFF2503C)),
+  (22.0, Color(0xFFB23CC0)),
+];
+
+Color windColor(double s) => _lerpStops(_windStops, s);
 
 class _WindPainter extends CustomPainter {
   final MapCamera cam;
@@ -249,21 +275,30 @@ class _WindPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    final paint = Paint()..strokeCap = StrokeCap.round;
     for (final p in particles) {
-      final a = cam.latLngToScreenOffset(LatLng(p.plat, p.plon));
-      final b = cam.latLngToScreenOffset(LatLng(p.lat, p.lon));
-      final fade = (1.0 - (p.age / p.life)).clamp(0.0, 1.0);
-      final alpha = (fade * 0.85).clamp(0.0, 1.0);
-      final color = _windColor(p.spd).withValues(alpha: alpha);
-      canvas.drawLine(
-        a,
-        b,
-        Paint()
-          ..color = color
-          ..strokeWidth = 1.6
-          ..strokeCap = StrokeCap.round,
+      final tr = p.trail;
+      if (tr.length < 2) continue;
+      final base = windColor(p.spd);
+      final ageFade = (1.0 - (p.age / p.life)).clamp(0.0, 1.0);
+      // 꼬리(옅고 가늘게) → 머리(진하고 굵게)
+      for (var i = 1; i < tr.length; i++) {
+        final a = cam.latLngToScreenOffset(tr[i - 1]);
+        final b = cam.latLngToScreenOffset(tr[i]);
+        final head = i / (tr.length - 1); // 0=꼬리, 1=머리
+        final alpha = (head * head * 0.95 * ageFade).clamp(0.0, 1.0);
+        paint
+          ..color = base.withValues(alpha: alpha)
+          ..strokeWidth = 1.4 + head * 2.8;
+        canvas.drawLine(a, b, paint);
+      }
+      // 머리 점 — 살짝 밝게
+      final headPt = cam.latLngToScreenOffset(tr.last);
+      canvas.drawCircle(
+        headPt,
+        2.4,
+        Paint()..color = base.withValues(alpha: 0.9 * ageFade),
       );
-      canvas.drawCircle(b, 1.4, Paint()..color = color);
     }
   }
 
@@ -506,27 +541,39 @@ class _WindLegend extends StatelessWidget {
   const _WindLegend();
   @override
   Widget build(BuildContext context) {
-    Widget item(Color c, String s) => Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(width: 9, height: 9, color: c),
-            const SizedBox(width: 3),
-            Text(s,
-                style: const TextStyle(
-                    fontFamily: fontFamily,
-                    color: Colors.white70,
-                    fontSize: 10)),
-          ],
-        );
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
+      padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          item(const Color(0xFFBFD3E6), '약'),
-          item(const Color(0xFF5AA9E6), '보통'),
-          item(const Color(0xFFF6C445), '강'),
-          item(const Color(0xFFFF5D73), '매우 강'),
+          const Text('0',
+              style: TextStyle(
+                  fontFamily: fontFamily,
+                  color: Colors.white70,
+                  fontSize: 10)),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Container(
+              height: 8,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(4),
+                gradient: LinearGradient(colors: [
+                  windColor(0),
+                  windColor(4),
+                  windColor(7),
+                  windColor(10),
+                  windColor(14),
+                  windColor(18),
+                  windColor(22),
+                ]),
+              ),
+            ),
+          ),
+          const SizedBox(width: 6),
+          const Text('20㎧+',
+              style: TextStyle(
+                  fontFamily: fontFamily,
+                  color: Colors.white70,
+                  fontSize: 10)),
         ],
       ),
     );
