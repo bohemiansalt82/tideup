@@ -1,12 +1,19 @@
+import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_map/flutter_map.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 import 'package:latlong2/latlong.dart';
 
 import '../services/map_field_api.dart';
 import 'theme.dart';
+
+// 솔리드(평면) 지도 색 — 밝은 바람/수온 표시가 잘 보이도록 어둡게.
+const _seaColor = Color(0xFF0E1A2B);
+const _landColor = Color(0xFF25384D);
+const _coastColor = Color(0xFF3C526B);
 
 /// 전체 지도 보기 — 아이폰 날씨 지도처럼 바람 흐름/수온 레이어를 시간별로 본다.
 class MapViewPage extends StatefulWidget {
@@ -31,6 +38,7 @@ class _MapViewPageState extends State<MapViewPage>
   final List<_P> _particles = [];
   final _rng = math.Random();
   Duration _lastTick = Duration.zero;
+  List<List<LatLng>> _land = const [];
 
   @override
   void initState() {
@@ -40,7 +48,23 @@ class _MapViewPageState extends State<MapViewPage>
       duration: const Duration(seconds: 2),
     )..addListener(_onTick);
     _anim.repeat();
+    _loadLand();
     _load();
+  }
+
+  Future<void> _loadLand() async {
+    try {
+      final raw = await rootBundle.loadString('assets/geo/land_ea.json');
+      final data = json.decode(raw) as Map<String, dynamic>;
+      final polys = (data['polys'] as List)
+          .map((ring) => (ring as List)
+              .map((p) => LatLng((p[0] as num).toDouble(), (p[1] as num).toDouble()))
+              .toList())
+          .toList();
+      if (mounted) setState(() => _land = polys);
+    } catch (_) {
+      // 실패해도 바다색 배경만으로 진행
+    }
   }
 
   Future<void> _load() async {
@@ -69,7 +93,7 @@ class _MapViewPageState extends State<MapViewPage>
 
   void _seedParticles() {
     _particles.clear();
-    for (var i = 0; i < 260; i++) {
+    for (var i = 0; i < 520; i++) {
       final p = _randomParticle();
       p.age = _rng.nextInt(p.life).toDouble(); // 수명 분산 → 깜빡임 방지
       _particles.add(p);
@@ -144,7 +168,7 @@ class _MapViewPageState extends State<MapViewPage>
   Widget build(BuildContext context) {
     final field = _field;
     return Scaffold(
-      backgroundColor: const Color(0xFF0B1220),
+      backgroundColor: _seaColor,
       body: Stack(
         children: [
           FlutterMap(
@@ -154,14 +178,30 @@ class _MapViewPageState extends State<MapViewPage>
               initialZoom: 6.3,
               minZoom: 5,
               maxZoom: 10,
+              backgroundColor: _seaColor,
               interactionOptions:
                   InteractionOptions(flags: InteractiveFlag.all),
             ),
             children: [
+              // 솔리드 육지 (해안선 폴리곤을 단색으로 채움)
+              if (_land.isNotEmpty)
+                PolygonLayer(
+                  polygons: [
+                    for (final ring in _land)
+                      Polygon(
+                        points: ring,
+                        color: _landColor,
+                        borderColor: _coastColor,
+                        borderStrokeWidth: 0.6,
+                      ),
+                  ],
+                ),
+              // 지명 라벨만 (가독성) — 어두운 배경용, 실패해도 무방
               TileLayer(
                 urlTemplate:
-                    'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                    'https://basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}@2x.png',
                 userAgentPackageName: 'com.bitewind.app',
+                tileProvider: NetworkTileProvider(),
               ),
               // 오버레이 (바람 입자 / 수온 히트맵)
               if (field != null && !field.isEmpty)

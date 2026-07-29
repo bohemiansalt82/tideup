@@ -32,6 +32,7 @@ flutter:
 
   assets:
     - assets/config/
+    - assets/geo/
 
   fonts:
     - family: Pretendard
