@@ -46,6 +46,7 @@ class _HomePageState extends State<HomePage> {
   Station? _myLocation; // GPS 기반 "내 위치" 지점 (관측소 20km 이내일 때만)
   String _query = '';
   final _searchController = TextEditingController();
+  final _searchFocus = FocusNode();
   late final GeocodingApi _geocoder = GeocodingApi(
     kakaoRestApiKey: widget.repository.config.kakaoRestApiKey,
   );
@@ -56,7 +57,18 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+    _searchFocus.addListener(() => setState(() {})); // 닫기 버튼 표시 갱신
     _init();
+  }
+
+  /// 검색 완전히 닫기 — 텍스트 지우고 포커스 해제, 리스트로 복귀.
+  void _closeSearch() {
+    setState(() {
+      _query = '';
+      _remote = const [];
+      _searchController.clear();
+    });
+    _searchFocus.unfocus();
   }
 
   Future<void> _init() async {
@@ -114,6 +126,7 @@ class _HomePageState extends State<HomePage> {
   void dispose() {
     _debounce?.cancel();
     _searchController.dispose();
+    _searchFocus.dispose();
     super.dispose();
   }
 
@@ -238,75 +251,123 @@ class _HomePageState extends State<HomePage> {
   Widget _buildFloatingSearch(BuildContext context) {
     final insets = MediaQuery.of(context).viewInsets.bottom;
     final safeBottom = MediaQuery.of(context).padding.bottom;
+    final active = _searchFocus.hasFocus || _query.isNotEmpty;
     return Positioned(
       left: 16,
       right: 16,
       bottom: (insets > 0 ? insets + 10 : safeBottom + 14),
       child: Material(
         color: Colors.transparent,
-        child: DecoratedBox(
-          // 그림자는 blur 클립 바깥에 둔다 (클립되면 안 보이므로)
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(radiusXl),
-            boxShadow: [
-              BoxShadow(
-                color: ink.withValues(alpha: 0.12),
-                blurRadius: 18,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(radiusXl),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-              child: Container(
+        child: Row(
+          children: [
+            Expanded(
+              child: DecoratedBox(
+                // 그림자는 blur 클립 바깥에 둔다 (클립되면 안 보이므로)
                 decoration: BoxDecoration(
-                  // 반투명 흰색 — 뒤 배경이 흐릿하게 비친다
-                  color: surface1.withValues(alpha: 0.72),
                   borderRadius: BorderRadius.circular(radiusXl),
-                  border: Border.all(color: hairline.withValues(alpha: 0.8)),
-                ),
-                child: TextField(
-                  controller: _searchController,
-                  onChanged: _onQueryChanged,
-                  style: body,
-                  cursorColor: ink,
-                  textInputAction: TextInputAction.search,
-                  decoration: InputDecoration(
-                    hintText: '지역·해변·선착장 검색 (예: 해운대, 궁평항…)',
-                    hintStyle: body.copyWith(color: inkTertiary),
-                    prefixIcon: const Icon(Icons.search, color: inkSubtle),
-                    suffixIcon: _query.isEmpty
-                        ? null
-                        : IconButton(
-                            icon: const Icon(
-                              Icons.close,
-                              color: inkSubtle,
-                              size: 20,
-                            ),
-                            onPressed: () {
-                              setState(() {
-                                _query = '';
-                                _remote = const [];
-                                _searchController.clear();
-                              });
-                              FocusScope.of(context).unfocus();
-                            },
-                          ),
-                    filled: false,
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 4,
-                      vertical: 14,
+                  boxShadow: [
+                    BoxShadow(
+                      color: ink.withValues(alpha: 0.12),
+                      blurRadius: 18,
+                      offset: const Offset(0, 4),
                     ),
-                    border: InputBorder.none,
-                    enabledBorder: InputBorder.none,
-                    focusedBorder: InputBorder.none,
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(radiusXl),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        // 반투명 흰색 — 뒤 배경이 흐릿하게 비친다
+                        color: surface1.withValues(alpha: 0.72),
+                        borderRadius: BorderRadius.circular(radiusXl),
+                        border: Border.all(
+                            color: hairline.withValues(alpha: 0.8)),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: _searchController,
+                              focusNode: _searchFocus,
+                              onChanged: _onQueryChanged,
+                              style: body,
+                              cursorColor: ink,
+                              textInputAction: TextInputAction.search,
+                              decoration: InputDecoration(
+                                hintText: '지역·해변·선착장 검색 (예: 해운대, 궁평항…)',
+                                hintStyle: body.copyWith(color: inkTertiary),
+                                prefixIcon: const Icon(Icons.search,
+                                    color: inkSubtle),
+                                filled: false,
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                  vertical: 14,
+                                ),
+                                border: InputBorder.none,
+                                enabledBorder: InputBorder.none,
+                                focusedBorder: InputBorder.none,
+                              ),
+                            ),
+                          ),
+                          // 인풋 안 지우기 — 텍스트만 지우고 포커스 유지
+                          if (_query.isNotEmpty)
+                            GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  _query = '';
+                                  _remote = const [];
+                                  _searchController.clear();
+                                });
+                                _searchFocus.requestFocus();
+                              },
+                              child: Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 6),
+                                child: Icon(Icons.cancel,
+                                    color: inkTertiary, size: 20),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
+            // 검색 닫기 — 인풋 옆 동그란 X 버튼 (아이폰 날씨 앱 스타일)
+            AnimatedSize(
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeOut,
+              child: active
+                  ? Padding(
+                      padding: const EdgeInsets.only(left: 8),
+                      child: InkWell(
+                        onTap: _closeSearch,
+                        customBorder: const CircleBorder(),
+                        child: Container(
+                          width: 52,
+                          height: 52,
+                          decoration: BoxDecoration(
+                            color: surface1,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: hairline),
+                            boxShadow: [
+                              BoxShadow(
+                                color: ink.withValues(alpha: 0.12),
+                                blurRadius: 18,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: const Icon(Icons.close, color: ink, size: 22),
+                        ),
+                      ),
+                    )
+                  : const SizedBox.shrink(),
+            ),
+          ],
         ),
       ),
     );
