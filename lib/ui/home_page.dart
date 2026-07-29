@@ -9,6 +9,7 @@ import '../logic/multtae.dart';
 import '../models/models.dart';
 import '../services/geocoding_api.dart';
 import '../services/repository.dart';
+import 'map_view_page.dart';
 import 'station_page.dart';
 import 'theme.dart';
 
@@ -260,6 +261,44 @@ class _HomePageState extends State<HomePage> {
         color: Colors.transparent,
         child: Row(
           children: [
+            // 전체 지도 보기 — 인풋 왼쪽 동그란 버튼 (검색 시 숨김)
+            AnimatedSize(
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeOut,
+              child: active
+                  ? const SizedBox.shrink()
+                  : Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: InkWell(
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => const MapViewPage(),
+                            ),
+                          );
+                        },
+                        customBorder: const CircleBorder(),
+                        child: Container(
+                          width: 52,
+                          height: 52,
+                          decoration: BoxDecoration(
+                            color: surface1,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: hairline),
+                            boxShadow: [
+                              BoxShadow(
+                                color: ink.withValues(alpha: 0.12),
+                                blurRadius: 18,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: const Icon(Icons.map_outlined,
+                              color: ink, size: 22),
+                        ),
+                      ),
+                    ),
+            ),
             Expanded(
               child: DecoratedBox(
                 // 그림자는 blur 클립 바깥에 둔다 (클립되면 안 보이므로)
