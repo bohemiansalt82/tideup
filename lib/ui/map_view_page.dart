@@ -102,8 +102,8 @@ class _MapViewPageState extends State<MapViewPage>
 
   _P _randomParticle() {
     final p = _P(
-      lat: 32.8 + _rng.nextDouble() * 6.4,
-      lon: 123.8 + _rng.nextDouble() * 7.2,
+      lat: 33.0 + _rng.nextDouble() * 5.7,
+      lon: 125.2 + _rng.nextDouble() * 4.8,
       life: 70 + _rng.nextInt(110),
     );
     p.trail.add(LatLng(p.lat, p.lon));
@@ -111,8 +111,8 @@ class _MapViewPageState extends State<MapViewPage>
   }
 
   void _resetParticle(_P p) {
-    p.lat = 32.8 + _rng.nextDouble() * 6.4;
-    p.lon = 123.8 + _rng.nextDouble() * 7.2;
+    p.lat = 33.0 + _rng.nextDouble() * 5.7;
+    p.lon = 125.2 + _rng.nextDouble() * 4.8;
     p.age = 0;
     p.life = 70 + _rng.nextInt(110);
     p.trail
@@ -147,10 +147,10 @@ class _MapViewPageState extends State<MapViewPage>
       if (p.trail.length > 18) p.trail.removeAt(0);
       p.age += dt * 30;
       if (p.age > p.life ||
-          p.lat < 32.5 ||
-          p.lat > 39.6 ||
-          p.lon < 123.4 ||
-          p.lon > 131.6) {
+          p.lat < 32.9 ||
+          p.lat > 38.8 ||
+          p.lon < 124.9 ||
+          p.lon > 130.4) {
         _resetParticle(p);
       }
     }
@@ -173,14 +173,21 @@ class _MapViewPageState extends State<MapViewPage>
         children: [
           FlutterMap(
             mapController: _mapController,
-            options: const MapOptions(
-              initialCenter: LatLng(36.3, 127.8),
-              initialZoom: 6.3,
-              minZoom: 5,
-              maxZoom: 10,
+            options: MapOptions(
+              initialCenter: const LatLng(35.9, 127.7),
+              initialZoom: 7.1,
+              minZoom: 7.0,
+              maxZoom: 11,
               backgroundColor: _seaColor,
+              // 남한 + 제주까지만 보이도록 영역 제한 (그 이상 축소·이동 불가)
+              cameraConstraint: CameraConstraint.contain(
+                bounds: LatLngBounds(
+                  const LatLng(32.8, 125.0),
+                  const LatLng(38.7, 130.2),
+                ),
+              ),
               interactionOptions:
-                  InteractionOptions(flags: InteractiveFlag.all),
+                  const InteractionOptions(flags: InteractiveFlag.all),
             ),
             children: [
               // 솔리드 육지 (해안선 폴리곤을 단색으로 채움)
