@@ -13,7 +13,7 @@ import 'map_view_page.dart';
 import 'station_page.dart';
 import 'theme.dart';
 
-/// 검색으로 추가할 수 있는 관측소 반경 한계 (km).
+/// 이 거리 안이면 관측소 조석을 그대로 신뢰, 밖이면 좌표 기반 예측(오차 안내).
 const _maxStationDistanceKm = 20.0;
 
 /// 지오코딩 검색 결과 한 건 — 최근접 관측소 거리 포함.
@@ -24,15 +24,18 @@ class _RemoteHit {
 
   const _RemoteHit(this.station, this.distKm, this.region);
 
-  bool get addable => distKm <= _maxStationDistanceKm;
+  /// TideBED는 관측소가 아니라 실제 좌표로 예측하므로 거리와 무관하게 추가 가능.
+  bool get addable => true;
+
+  /// 최근접 관측소가 멀면(예측 오차 가능) 안내 문구를 다르게 준다.
+  bool get farFromStation => distKm > _maxStationDistanceKm;
 }
 
 /// 홈 — 아이폰 날씨 앱의 도시 목록처럼 지점 요약 카드가 리스트로 쌓인다.
 ///
 /// 상단 검색은 내장 목록(관측소·해변·선착장 등)을 즉시 거르고,
-/// 없는 지명은 OpenStreetMap 지오코딩으로 찾아 최근접 관측소가
-/// 20km 이내면 추가할 수 있다. 카드 탭 → 상세, 스와이프 삭제,
-/// 길게 눌러 드래그 정렬.
+/// 없는 지명은 지오코딩으로 찾아 좌표 기반으로 추가한다(TideBED가 실제
+/// 좌표로 예측). 카드 탭 → 상세, 스와이프 삭제, 길게 눌러 드래그 정렬.
 class HomePage extends StatefulWidget {
   final Repository repository;
 
@@ -494,10 +497,10 @@ class _HomePageState extends State<HomePage> {
             ],
           ),
           subtitle: Text(
-            h.addable
-                ? '${h.region.isEmpty ? '' : '${h.region} · '}조석 기준: $refName 관측소 · ${distText}km'
-                : '${h.region.isEmpty ? '' : '${h.region} · '}가까운 관측소($refName)가 ${distText}km — 20km 밖이라 추가할 수 없어요',
-            style: caption.copyWith(color: h.addable ? inkSubtle : inkTertiary),
+            h.farFromStation
+                ? '${h.region.isEmpty ? '' : '${h.region} · '}좌표 기준 예측 · 가까운 관측소($refName) ${distText}km, 오차 있을 수 있어요'
+                : '${h.region.isEmpty ? '' : '${h.region} · '}조석 기준: $refName 관측소 · ${distText}km',
+            style: caption.copyWith(color: inkSubtle),
           ),
           trailing: h.addable
               ? IconButton(
