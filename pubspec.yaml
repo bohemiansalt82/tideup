@@ -26,6 +26,22 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.1
+
+# 앱 런처 아이콘 생성 설정 (dart run flutter_launcher_icons)
+flutter_launcher_icons:
+  image_path: "assets/icon/tideup_icon.png"
+  android: "ic_launcher"
+  adaptive_icon_background: "assets/icon/tideup_bg.png"
+  adaptive_icon_foreground: "assets/icon/tideup_fg.png"
+  min_sdk_android: 21
+  ios: true
+  remove_alpha_ios: true
+  web:
+    generate: true
+    image_path: "assets/icon/tideup_icon.png"
+    background_color: "#0B3B66"
+    theme_color: "#0B3B66"
 
 flutter:
   uses-material-design: true

@@ -123,7 +123,7 @@ Future<void> _openNaver(BuildContext context, NearbyPlace p) {
   return _launch(
     context,
     Uri.parse(
-        'nmap://place?lat=${p.lat}&lng=${p.lon}&name=$name&appname=com.bitewind.app'),
+        'nmap://place?lat=${p.lat}&lng=${p.lon}&name=$name&appname=com.tideup.app'),
     fallback: Uri.parse('https://map.naver.com/p/search/$name'),
   );
 }

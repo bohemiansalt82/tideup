@@ -118,7 +118,7 @@ class _NearbyMapState extends State<NearbyMap>
                 TileLayer(
                   urlTemplate:
                       'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                  userAgentPackageName: 'com.bitewind.app',
+                  userAgentPackageName: 'com.tideup.app',
                 ),
                 CircleLayer(circles: [
                   CircleMarker(

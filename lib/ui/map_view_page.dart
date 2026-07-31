@@ -207,7 +207,7 @@ class _MapViewPageState extends State<MapViewPage>
               TileLayer(
                 urlTemplate:
                     'https://basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}@2x.png',
-                userAgentPackageName: 'com.bitewind.app',
+                userAgentPackageName: 'com.tideup.app',
                 tileProvider: NetworkTileProvider(),
               ),
               // 오버레이 (바람 입자 / 수온 히트맵)

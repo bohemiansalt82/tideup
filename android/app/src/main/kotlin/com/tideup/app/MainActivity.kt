@@ -1,4 +1,4 @@
-package com.bitewind.bitewind
+package com.tideup.app
 
 import io.flutter.embedding.android.FlutterActivity
 
