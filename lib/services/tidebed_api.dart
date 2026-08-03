@@ -15,6 +15,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../models/models.dart';
+import 'net.dart';
 
 class TideBedException implements Exception {
   final String message;
@@ -118,10 +119,12 @@ class TideBedApi {
       'obsCode': obsCode,
       'reqDate': _fmtDate(date),
       'min': '$min',
-      'numOfRows': '400',
+      // numOfRows는 상한이 있어 400이면 INVALID_REQUEST_PARAMETER_ERROR.
+      // 하루 10분 간격이면 144점이라 200으로 충분.
+      'numOfRows': '200',
       'pageNo': '1',
     });
-    final res = await _client.get(uri).timeout(const Duration(seconds: 20));
+    final res = await _client.get(corsSafe(uri)).timeout(const Duration(seconds: 20));
     if (res.statusCode != 200) {
       throw TideBedException('HTTP ${res.statusCode}');
     }
@@ -168,7 +171,7 @@ class TideBedApi {
       'numOfRows': '300',
       'pageNo': '1',
     });
-    final res = await _client.get(uri).timeout(const Duration(seconds: 20));
+    final res = await _client.get(corsSafe(uri)).timeout(const Duration(seconds: 20));
     if (res.statusCode != 200) {
       throw TideBedException('HTTP ${res.statusCode}');
     }
