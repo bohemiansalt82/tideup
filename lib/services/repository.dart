@@ -265,17 +265,26 @@ class Repository {
     return (station.lat, station.lon);
   }
 
+  /// 하루치 조위: TideBED 좌표예측(서·남해) → 실패 시 관측소코드 조석예보(동해 등).
+  Future<TideBedDay> _fetchTideDay(Station station, DateTime date) async {
+    final (refLat, refLon) = _refStationCoord(station);
+    try {
+      return await _tidebed!.fetchDay(station.lat, station.lon, date,
+          fallbackLat: refLat, fallbackLon: refLon);
+    } on TideBedException {
+      // 동해안 등 TideBED 미지원 → 관측소 코드 기반 조석예보로 폴백
+      return await _tidebed!.fetchStationDay(station.code, date);
+    }
+  }
+
   /// TideBED(조위 곡선) + Open-Meteo(날씨·수온·바람)로 하루 종합 데이터.
   Future<StationDayData> _loadTideBed(Station station) async {
     final today = DateTime.now();
     final tomorrow = today.add(const Duration(days: 1));
-    final (refLat, refLon) = _refStationCoord(station);
 
     final results = await Future.wait([
-      _tidebed!.fetchDay(station.lat, station.lon, today,
-          fallbackLat: refLat, fallbackLon: refLon),
-      _tidebed.fetchDay(station.lat, station.lon, tomorrow,
-          fallbackLat: refLat, fallbackLon: refLon),
+      _fetchTideDay(station, today),
+      _fetchTideDay(station, tomorrow),
       _weather.fetchHourly(station.lat, station.lon).catchError(
             (_) => <HourlyWeather>[],
           ),
@@ -322,10 +331,7 @@ class Repository {
           if (_khoa != null) {
             events = await _khoa.fetchHighLow(station.code, date);
           } else if (_tidebed != null) {
-            final (refLat, refLon) = _refStationCoord(station);
-            events = (await _tidebed.fetchDay(station.lat, station.lon, date,
-                    fallbackLat: refLat, fallbackLon: refLon))
-                .events;
+            events = (await _fetchTideDay(station, date)).events;
           } else {
             events = _mock.eventsFor(station, date);
           }

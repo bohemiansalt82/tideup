@@ -36,6 +36,9 @@ class TideBedDay {
 class TideBedApi {
   static const _base =
       'https://apis.data.go.kr/1192136/tidebed/GetTidebedApiService';
+  // 관측소 코드 기반 조석예보(동해 포함) — TideBED 좌표예측이 안 되는 곳 폴백.
+  static const _fcstBase =
+      'https://apis.data.go.kr/1192136/tideFcstTime/GetTideFcstTimeApiService';
   final String serviceKey;
   final http.Client _client;
 
@@ -79,6 +82,77 @@ class TideBedApi {
       }
     }
     throw lastErr ?? TideBedException('unknown');
+  }
+
+  /// 관측소 코드(DT_xxxx)로 하루치 예측 조위 곡선 + 만조/간조.
+  ///
+  /// TideBED(격자)는 동해를 지원하지 않으므로, 동해안·먼바다 관측소는
+  /// 이 조석예보 API로 실데이터를 얻는다. 좌표 대신 obsCode를 쓴다.
+  Future<TideBedDay> fetchStationDay(String obsCode, DateTime date,
+      {int min = 10}) async {
+    TideBedException? lastErr;
+    for (var attempt = 0; attempt < 3; attempt++) {
+      try {
+        return await _fetchStationRaw(obsCode, date, min);
+      } on TideBedException catch (e) {
+        lastErr = e;
+        // 파라미터 무효/서비스 없음은 재시도 무의미
+        if (e.message.contains('INVALID') ||
+            e.message.contains('NO_') ||
+            e.message.contains('빈 응답')) {
+          break;
+        }
+        if (attempt < 2) {
+          await Future.delayed(Duration(milliseconds: 500 * (attempt + 1)));
+        }
+      }
+    }
+    throw lastErr ?? TideBedException('unknown');
+  }
+
+  Future<TideBedDay> _fetchStationRaw(
+      String obsCode, DateTime date, int min) async {
+    final uri = Uri.parse(_fcstBase).replace(queryParameters: {
+      'serviceKey': serviceKey,
+      'type': 'json',
+      'obsCode': obsCode,
+      'reqDate': _fmtDate(date),
+      'min': '$min',
+      'numOfRows': '400',
+      'pageNo': '1',
+    });
+    final res = await _client.get(uri).timeout(const Duration(seconds: 20));
+    if (res.statusCode != 200) {
+      throw TideBedException('HTTP ${res.statusCode}');
+    }
+    final body = res.body.trim();
+    if (!body.startsWith('{')) {
+      throw TideBedException('비정상 응답 — 인증키/활용신청을 확인하세요');
+    }
+    final j = json.decode(body) as Map<String, dynamic>;
+    final code = (j['header'] as Map?)?['resultCode'];
+    if (code != '00') {
+      throw TideBedException('${(j['header'] as Map?)?['resultMsg'] ?? code}');
+    }
+    final items =
+        ((j['body'] as Map?)?['items'] as Map?)?['item'] as List? ?? const [];
+    String refName = '';
+    final curve = <TidePoint>[];
+    for (final row in items.cast<Map<String, dynamic>>()) {
+      refName = row['obsvtrNm']?.toString() ?? refName;
+      final t = DateTime.tryParse(
+          (row['predcDt']?.toString() ?? '').replaceFirst(' ', 'T'));
+      final h = (row['tdlvHgt'] as num?)?.toDouble();
+      if (t == null || h == null) continue;
+      curve.add(TidePoint(t, h));
+    }
+    curve.sort((a, b) => a.time.compareTo(b.time));
+    if (curve.isEmpty) throw TideBedException('빈 응답');
+    return TideBedDay(
+      refName: refName,
+      curve: curve,
+      events: _extractEvents(curve),
+    );
   }
 
   Future<TideBedDay> _fetchRaw(
