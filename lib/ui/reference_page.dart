@@ -7,6 +7,20 @@ import 'theme.dart';
 class ReferencePage extends StatelessWidget {
   const ReferencePage({super.key});
 
+  // 봉돌·부력: 호(号) → 그람(g), 1호 = 3.75 g (1匁/1돈).
+  static const List<(String, String)> _sinker = [
+    ('1호', '3.75'),
+    ('2호', '7.5'),
+    ('3호', '11.25'),
+    ('4호', '15'),
+    ('5호', '18.75'),
+    ('6호', '22.5'),
+    ('7호', '26.25'),
+    ('8호', '30'),
+    ('9호', '33.75'),
+    ('10호', '37.5'),
+  ];
+
   // 무게: 오즈(oz) → 그람(g), 1 oz = 28.3495 g. 봉돌·루어 무게.
   static const List<(String, String)> _weight = [
     ('1/32', '0.9'),
@@ -82,6 +96,14 @@ class ReferencePage extends StatelessWidget {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
                 children: [
+                  _ConvCard(
+                    title: '봉돌·부력 (호수 > 그람)',
+                    subtitle: '찌 부력·봉돌 호수 (1호 = 3.75 g)',
+                    tables: [
+                      _TableSpec(leftUnit: '호', rightUnit: 'g', cells: _sinker),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
                   _ConvCard(
                     title: '무게 (온스 > 그람)',
                     subtitle: '봉돌·루어 무게 (1 oz = 28.35 g)',
