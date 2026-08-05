@@ -252,6 +252,45 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  /// 검색창과 동일한 백드랍 블러(반투명 유리)를 입힌 동그란 아이콘 버튼.
+  Widget _glassCircleButton({
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    return DecoratedBox(
+      // 그림자는 blur 클립 바깥에 둔다 (클립되면 안 보이므로)
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: ink.withValues(alpha: 0.12),
+            blurRadius: 18,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ClipOval(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+          child: Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              color: surface1.withValues(alpha: 0.72),
+              shape: BoxShape.circle,
+              border: Border.all(color: hairline.withValues(alpha: 0.8)),
+            ),
+            child: InkWell(
+              onTap: onTap,
+              customBorder: const CircleBorder(),
+              child: Center(child: Icon(icon, color: ink, size: 22)),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   /// 인풋 옆 동그란 아이콘 버튼 (검색 활성 시 접힘).
   /// [trailing]이면 인풋 오른쪽용으로 왼쪽 여백을 준다.
   Widget _circleIconButton({
@@ -269,27 +308,7 @@ class _HomePageState extends State<HomePage> {
               padding: trailing
                   ? const EdgeInsets.only(left: 8)
                   : const EdgeInsets.only(right: 8),
-              child: InkWell(
-                onTap: onTap,
-                customBorder: const CircleBorder(),
-                child: Container(
-                  width: 52,
-                  height: 52,
-                  decoration: BoxDecoration(
-                    color: surface1,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: hairline),
-                    boxShadow: [
-                      BoxShadow(
-                        color: ink.withValues(alpha: 0.12),
-                        blurRadius: 18,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Icon(icon, color: ink, size: 22),
-                ),
-              ),
+              child: _glassCircleButton(icon: icon, onTap: onTap),
             ),
     );
   }
@@ -406,26 +425,9 @@ class _HomePageState extends State<HomePage> {
               child: active
                   ? Padding(
                       padding: const EdgeInsets.only(left: 8),
-                      child: InkWell(
+                      child: _glassCircleButton(
+                        icon: Icons.close,
                         onTap: _closeSearch,
-                        customBorder: const CircleBorder(),
-                        child: Container(
-                          width: 52,
-                          height: 52,
-                          decoration: BoxDecoration(
-                            color: surface1,
-                            shape: BoxShape.circle,
-                            border: Border.all(color: hairline),
-                            boxShadow: [
-                              BoxShadow(
-                                color: ink.withValues(alpha: 0.12),
-                                blurRadius: 18,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: const Icon(Icons.close, color: ink, size: 22),
-                        ),
                       ),
                     )
                   : const SizedBox.shrink(),
