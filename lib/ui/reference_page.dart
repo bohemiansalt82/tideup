@@ -83,7 +83,7 @@ class ReferencePage extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
                 children: [
                   _ConvCard(
-                    title: '무게 · 오즈 → 그람',
+                    title: '무게 (온스 > 그람)',
                     subtitle: '봉돌·루어 무게 (1 oz = 28.35 g)',
                     tables: [
                       _TableSpec(leftUnit: 'oz', rightUnit: 'g', cells: _weight),
@@ -91,7 +91,7 @@ class ReferencePage extends StatelessWidget {
                   ),
                   const SizedBox(height: 14),
                   _ConvCard(
-                    title: '길이 · 인치·피트 → cm',
+                    title: '길이 (인치,피트 > cm)',
                     subtitle: '루어·낚싯대 길이 (1" = 2.54 cm, 1\' = 30.48 cm)',
                     tables: [
                       _TableSpec(
