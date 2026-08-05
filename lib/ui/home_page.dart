@@ -252,12 +252,13 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  /// 하단 플로팅 검색창 — 키보드 높이에 맞춰 위로 올라온다.
-  /// 인풋 왼쪽 동그란 아이콘 버튼 (검색 활성 시 접힘).
-  Widget _leadingCircleButton({
+  /// 인풋 옆 동그란 아이콘 버튼 (검색 활성 시 접힘).
+  /// [trailing]이면 인풋 오른쪽용으로 왼쪽 여백을 준다.
+  Widget _circleIconButton({
     required IconData icon,
     required bool active,
     required VoidCallback onTap,
+    bool trailing = false,
   }) {
     return AnimatedSize(
       duration: const Duration(milliseconds: 180),
@@ -265,7 +266,9 @@ class _HomePageState extends State<HomePage> {
       child: active
           ? const SizedBox.shrink()
           : Padding(
-              padding: const EdgeInsets.only(right: 8),
+              padding: trailing
+                  ? const EdgeInsets.only(left: 8)
+                  : const EdgeInsets.only(right: 8),
               child: InkWell(
                 onTap: onTap,
                 customBorder: const CircleBorder(),
@@ -304,19 +307,11 @@ class _HomePageState extends State<HomePage> {
         child: Row(
           children: [
             // 전체 지도 보기 — 인풋 왼쪽 동그란 버튼 (검색 시 숨김)
-            _leadingCircleButton(
+            _circleIconButton(
               icon: Icons.map_outlined,
               active: active,
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute<void>(builder: (_) => const MapViewPage()),
-              ),
-            ),
-            // 메뉴 — 낚시 단위표 등 참고 정보 (검색 시 숨김)
-            _leadingCircleButton(
-              icon: Icons.menu,
-              active: active,
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(builder: (_) => const ReferencePage()),
               ),
             ),
             Expanded(
@@ -393,6 +388,15 @@ class _HomePageState extends State<HomePage> {
                     ),
                   ),
                 ),
+              ),
+            ),
+            // 낚시 단위표 등 참고 정보 — 인풋 오른쪽 도큐먼트 버튼 (검색 시 숨김)
+            _circleIconButton(
+              icon: Icons.description_outlined,
+              active: active,
+              trailing: true,
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(builder: (_) => const ReferencePage()),
               ),
             ),
             // 검색 닫기 — 인풋 옆 동그란 X 버튼 (아이폰 날씨 앱 스타일)
