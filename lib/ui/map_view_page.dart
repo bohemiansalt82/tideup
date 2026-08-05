@@ -244,6 +244,7 @@ class _MapViewPageState extends State<MapViewPage>
                   const InteractionOptions(flags: InteractiveFlag.all),
             ),
             children: [
+              // 오프라인 폴백용 육지(타일 로드 실패 시 형태만이라도)
               if (_land.isNotEmpty)
                 PolygonLayer(
                   polygons: [
@@ -256,7 +257,14 @@ class _MapViewPageState extends State<MapViewPage>
                       ),
                   ],
                 ),
-              // 1) 데이터 컬러 풀커버 (정적 — 시각/레이어 바뀔 때만 리페인트)
+              // 밝은 베이스 지도(해안선·도로·경계) — 데이터가 위에 반투명으로 얹힌다
+              TileLayer(
+                urlTemplate:
+                    'https://basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}@2x.png',
+                userAgentPackageName: 'com.tideup.app',
+                tileProvider: NetworkTileProvider(),
+              ),
+              // 1) 데이터 컬러 (정적 — 시각/레이어 바뀔 때만 리페인트, 지도가 비치게 반투명)
               if (ready)
                 _overlay((cam) =>
                     _FillPainter(cam, field.points, _hour, _layer)),
@@ -451,7 +459,8 @@ class _FillPainter extends CustomPainter {
         o,
         r,
         Paint()
-          ..color = c.withValues(alpha: 0.82)
+          // 반투명 — 밑의 지도(해안선·도로)가 비쳐 보이도록
+          ..color = c.withValues(alpha: 0.55)
           ..maskFilter = MaskFilter.blur(BlurStyle.normal, blur),
       );
     }
