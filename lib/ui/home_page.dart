@@ -10,6 +10,7 @@ import '../models/models.dart';
 import '../services/geocoding_api.dart';
 import '../services/repository.dart';
 import 'map_view_page.dart';
+import 'reference_page.dart';
 import 'station_page.dart';
 import 'theme.dart';
 
@@ -252,6 +253,44 @@ class _HomePageState extends State<HomePage> {
   }
 
   /// 하단 플로팅 검색창 — 키보드 높이에 맞춰 위로 올라온다.
+  /// 인풋 왼쪽 동그란 아이콘 버튼 (검색 활성 시 접힘).
+  Widget _leadingCircleButton({
+    required IconData icon,
+    required bool active,
+    required VoidCallback onTap,
+  }) {
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 180),
+      curve: Curves.easeOut,
+      child: active
+          ? const SizedBox.shrink()
+          : Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: InkWell(
+                onTap: onTap,
+                customBorder: const CircleBorder(),
+                child: Container(
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    color: surface1,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: hairline),
+                    boxShadow: [
+                      BoxShadow(
+                        color: ink.withValues(alpha: 0.12),
+                        blurRadius: 18,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Icon(icon, color: ink, size: 22),
+                ),
+              ),
+            ),
+    );
+  }
+
   Widget _buildFloatingSearch(BuildContext context) {
     final insets = MediaQuery.of(context).viewInsets.bottom;
     final safeBottom = MediaQuery.of(context).padding.bottom;
@@ -265,42 +304,20 @@ class _HomePageState extends State<HomePage> {
         child: Row(
           children: [
             // 전체 지도 보기 — 인풋 왼쪽 동그란 버튼 (검색 시 숨김)
-            AnimatedSize(
-              duration: const Duration(milliseconds: 180),
-              curve: Curves.easeOut,
-              child: active
-                  ? const SizedBox.shrink()
-                  : Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: InkWell(
-                        onTap: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute<void>(
-                              builder: (_) => const MapViewPage(),
-                            ),
-                          );
-                        },
-                        customBorder: const CircleBorder(),
-                        child: Container(
-                          width: 52,
-                          height: 52,
-                          decoration: BoxDecoration(
-                            color: surface1,
-                            shape: BoxShape.circle,
-                            border: Border.all(color: hairline),
-                            boxShadow: [
-                              BoxShadow(
-                                color: ink.withValues(alpha: 0.12),
-                                blurRadius: 18,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: const Icon(Icons.map_outlined,
-                              color: ink, size: 22),
-                        ),
-                      ),
-                    ),
+            _leadingCircleButton(
+              icon: Icons.map_outlined,
+              active: active,
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(builder: (_) => const MapViewPage()),
+              ),
+            ),
+            // 메뉴 — 낚시 단위표 등 참고 정보 (검색 시 숨김)
+            _leadingCircleButton(
+              icon: Icons.menu,
+              active: active,
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(builder: (_) => const ReferencePage()),
+              ),
             ),
             Expanded(
               child: DecoratedBox(
