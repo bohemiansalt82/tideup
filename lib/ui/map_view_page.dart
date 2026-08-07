@@ -15,6 +15,7 @@ import 'theme.dart';
 const _seaColor = Color(0xFFD8E3EC);
 const _landColor = Color(0xFFE7ECEF);
 const _coastColor = Color(0xFFBAC6CF);
+const _coastLine = Color(0xFF37506A); // 데이터 위에 얹는 진한 해안선
 const _labelInk = Color(0xFF243441);
 
 /// 지도에 값 버블/라벨을 그릴 주요 도시. (이름, 위도, 경도, 대표도시 여부)
@@ -295,6 +296,19 @@ class _MapViewPageState extends State<MapViewPage>
               if (ready)
                 _overlay((cam) =>
                     _FillPainter(cam, field.points, _hour, _layer, _seaFlags)),
+              // 1.5) 해안선을 데이터 위에 다시 그려 한반도 윤곽을 또렷하게
+              if (_land.isNotEmpty)
+                PolygonLayer(
+                  polygons: [
+                    for (final ring in _land)
+                      Polygon(
+                        points: ring,
+                        color: Colors.transparent,
+                        borderColor: _coastLine,
+                        borderStrokeWidth: 1.3,
+                      ),
+                  ],
+                ),
               // 2) 바람 입자 (매 프레임 애니메이션)
               if (ready && _layer == _Layer.wind)
                 _overlay((cam) => _StreakPainter(cam, _particles)),
@@ -486,12 +500,13 @@ class _FillPainter extends CustomPainter {
       if (c == null) continue;
       final o = cam.latLngToScreenOffset(LatLng(p.lat, p.lon));
       if (!_onScreen(o, size, r + blur)) continue;
+      // 바람은 육지까지 덮으므로 더 옅게(지도가 보이게), 수온은 바다만이라 조금 진하게.
+      final alpha = layer == _Layer.wind ? 0.42 : 0.55;
       canvas.drawCircle(
         o,
         r,
         Paint()
-          // 반투명 — 밑의 지도(해안선·도로)가 비쳐 보이도록
-          ..color = c.withValues(alpha: 0.55)
+          ..color = c.withValues(alpha: alpha)
           ..maskFilter = MaskFilter.blur(BlurStyle.normal, blur),
       );
     }
