@@ -74,6 +74,7 @@ class _MapViewPageState extends State<MapViewPage>
   final _rng = math.Random();
   Duration _lastTick = Duration.zero;
   List<List<LatLng>> _land = const [];
+  List<bool> _seaFlags = const []; // 격자점별 바다 여부 (수온은 바다만 표시)
   Timer? _playTimer;
 
   bool get _playing => _playTimer != null;
@@ -101,7 +102,32 @@ class _MapViewPageState extends State<MapViewPage>
               .toList())
           .toList();
       if (mounted) setState(() => _land = polys);
+      _computeSea();
     } catch (_) {}
+  }
+
+  /// 격자점이 육지 폴리곤 안이면 바다 아님(수온 표시 제외).
+  void _computeSea() {
+    final f = _field;
+    if (f == null || _land.isEmpty) return;
+    bool inLand(double lat, double lon) {
+      for (final ring in _land) {
+        var inside = false;
+        for (var i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+          final yi = ring[i].latitude, xi = ring[i].longitude;
+          final yj = ring[j].latitude, xj = ring[j].longitude;
+          if (((yi > lat) != (yj > lat)) &&
+              (lon < (xj - xi) * (lat - yi) / (yj - yi) + xi)) {
+            inside = !inside;
+          }
+        }
+        if (inside) return true;
+      }
+      return false;
+    }
+
+    final flags = [for (final p in f.points) !inLand(p.lat, p.lon)];
+    if (mounted) setState(() => _seaFlags = flags);
   }
 
   Future<void> _load() async {
@@ -122,6 +148,7 @@ class _MapViewPageState extends State<MapViewPage>
         _hour = idx;
       });
       _seedParticles();
+      _computeSea();
     } catch (e) {
       if (mounted) setState(() => _error = e);
     }
@@ -267,14 +294,14 @@ class _MapViewPageState extends State<MapViewPage>
               // 1) 데이터 컬러 (정적 — 시각/레이어 바뀔 때만 리페인트, 지도가 비치게 반투명)
               if (ready)
                 _overlay((cam) =>
-                    _FillPainter(cam, field.points, _hour, _layer)),
+                    _FillPainter(cam, field.points, _hour, _layer, _seaFlags)),
               // 2) 바람 입자 (매 프레임 애니메이션)
               if (ready && _layer == _Layer.wind)
                 _overlay((cam) => _StreakPainter(cam, _particles)),
               // 3) 도시 라벨 + 값 버블 (정적)
               if (ready)
                 _overlay((cam) =>
-                    _LabelPainter(cam, field.points, _hour, _layer)),
+                    _LabelPainter(cam, field.points, _hour, _layer, _seaFlags)),
             ],
           ),
 
@@ -429,8 +456,9 @@ class _FillPainter extends CustomPainter {
   final List<FieldPoint> points;
   final int hour;
   final _Layer layer;
+  final List<bool> sea;
 
-  _FillPainter(this.cam, this.points, this.hour, this.layer);
+  _FillPainter(this.cam, this.points, this.hour, this.layer, this.sea);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -441,7 +469,8 @@ class _FillPainter extends CustomPainter {
     final r = spacing * 0.85;
     final blur = spacing * 0.6;
 
-    for (final p in points) {
+    for (var idx = 0; idx < points.length; idx++) {
+      final p = points[idx];
       if (hour >= p.hours.length) continue;
       final h = p.hours[hour];
       final Color? c;
@@ -449,6 +478,8 @@ class _FillPainter extends CustomPainter {
         final s = h.windSpeedMs;
         c = s == null ? null : windColor(s);
       } else {
+        // 수온은 바다 격자점만 (내륙 제외)
+        if (idx < sea.length && !sea[idx]) continue;
         final t = h.waterTempC;
         c = t == null ? null : tempColor(t);
       }
@@ -513,8 +544,9 @@ class _LabelPainter extends CustomPainter {
   final List<FieldPoint> points;
   final int hour;
   final _Layer layer;
+  final List<bool> sea;
 
-  _LabelPainter(this.cam, this.points, this.hour, this.layer);
+  _LabelPainter(this.cam, this.points, this.hour, this.layer, this.sea);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -588,6 +620,7 @@ class _LabelPainter extends CustomPainter {
       for (var i = 0; i < points.length; i++) {
         final p = points[i];
         if (hour >= p.hours.length) continue;
+        if (i < sea.length && !sea[i]) continue; // 바다 격자점만
         final t = p.hours[hour].waterTempC;
         if (t == null) continue;
         if (i % 2 != 0) continue; // 밀도 줄이기
@@ -819,27 +852,40 @@ class _PlayBar extends StatelessWidget {
     final dateStr = DateFormat('yyyy년 M월 d일 EEEE', 'ko_KR').format(t);
     final maxIdx = (times.length - 1).clamp(0, 47);
 
-    // 시간축 눈금 (5개) — 현재 실시각과 같으면 '지금'.
+    // '지금' 위치(슬라이더 트랙상 비율) — 현재 실시각에 가장 가까운 인덱스.
+    var nowIdx = 0;
+    var bestDiff = double.infinity;
+    for (var i = 0; i <= maxIdx && i < times.length; i++) {
+      final d = (times[i].difference(now).inMinutes).abs().toDouble();
+      if (d < bestDiff) {
+        bestDiff = d;
+        nowIdx = i;
+      }
+    }
+    final nowFrac = maxIdx == 0 ? 0.0 : (nowIdx / maxIdx).clamp(0.0, 1.0);
+
+    // 시간축 눈금 (4개) — 자정/정오는 알기 쉬운 말로.
+    String fmt(DateTime tt) {
+      if (tt.hour == 0) return '자정';
+      if (tt.hour == 12) return '정오';
+      return DateFormat('a h시', 'ko_KR').format(tt);
+    }
+
     final tickIdx = <int>[
       0,
-      (maxIdx * 0.25).round(),
-      (maxIdx * 0.5).round(),
-      (maxIdx * 0.75).round(),
+      (maxIdx / 3).round(),
+      (maxIdx * 2 / 3).round(),
       maxIdx,
     ];
     Widget tick(int i) {
       final tt = i < times.length ? times[i] : now;
-      final isNow = tt.year == now.year &&
-          tt.month == now.month &&
-          tt.day == now.day &&
-          tt.hour == now.hour;
       return Text(
-        isNow ? '지금' : DateFormat('a h시', 'ko_KR').format(tt),
+        fmt(tt),
         style: TextStyle(
           fontFamily: fontFamily,
-          color: isNow ? _labelInk : _labelInk.withValues(alpha: 0.55),
+          color: _labelInk.withValues(alpha: 0.55),
           fontSize: 10.5,
-          fontWeight: isNow ? FontWeight.w700 : FontWeight.w500,
+          fontWeight: FontWeight.w500,
         ),
       );
     }
@@ -888,6 +934,22 @@ class _PlayBar extends StatelessWidget {
                       fontSize: 11,
                       fontWeight: FontWeight.w500,
                     )),
+                const SizedBox(height: 2),
+                // '지금' 마커 — 현재 실시각 위치
+                SizedBox(
+                  height: 13,
+                  width: double.infinity,
+                  child: Align(
+                    alignment: Alignment(nowFrac * 2 - 1, 0),
+                    child: const Text('지금',
+                        style: TextStyle(
+                          fontFamily: fontFamily,
+                          color: finOrange,
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w700,
+                        )),
+                  ),
+                ),
                 SliderTheme(
                   data: SliderTheme.of(context).copyWith(
                     trackHeight: 3,

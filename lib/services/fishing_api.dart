@@ -67,7 +67,7 @@ class FishingApi {
         'pageNo': '$page',
         'numOfRows': '300',
       });
-      final res = await _client.get(corsSafe(uri)).timeout(const Duration(seconds: 20));
+      final res = await corsGet(_client, uri);
       if (res.statusCode != 200) break;
       final j = json.decode(res.body) as Map<String, dynamic>;
       if ((j['header'] as Map?)?['resultCode'] != '00') break;

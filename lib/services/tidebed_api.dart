@@ -124,7 +124,7 @@ class TideBedApi {
       'numOfRows': '200',
       'pageNo': '1',
     });
-    final res = await _client.get(corsSafe(uri)).timeout(const Duration(seconds: 20));
+    final res = await corsGet(_client, uri);
     if (res.statusCode != 200) {
       throw TideBedException('HTTP ${res.statusCode}');
     }
@@ -171,7 +171,7 @@ class TideBedApi {
       'numOfRows': '300',
       'pageNo': '1',
     });
-    final res = await _client.get(corsSafe(uri)).timeout(const Duration(seconds: 20));
+    final res = await corsGet(_client, uri);
     if (res.statusCode != 200) {
       throw TideBedException('HTTP ${res.statusCode}');
     }

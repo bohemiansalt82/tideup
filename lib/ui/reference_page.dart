@@ -21,6 +21,38 @@ class ReferencePage extends StatelessWidget {
     ('10호', '37.5'),
   ];
 
+  // 낚싯줄 호수(号) → 지름(mm). 나일론/카본 표준 규격.
+  static const List<(String, String)> _lineMm = [
+    ('0.8호', '0.148'),
+    ('1호', '0.165'),
+    ('1.5호', '0.205'),
+    ('2호', '0.235'),
+    ('2.5호', '0.260'),
+    ('3호', '0.285'),
+    ('3.5호', '0.310'),
+    ('4호', '0.330'),
+    ('5호', '0.370'),
+    ('6호', '0.405'),
+    ('8호', '0.470'),
+    ('10호', '0.520'),
+  ];
+
+  // 낚싯줄 호수(号) → 강도(lb). 나일론 기준 근사치.
+  static const List<(String, String)> _lineLb = [
+    ('0.8호', '3'),
+    ('1호', '4'),
+    ('1.5호', '6'),
+    ('2호', '8'),
+    ('2.5호', '10'),
+    ('3호', '12'),
+    ('3.5호', '14'),
+    ('4호', '16'),
+    ('5호', '20'),
+    ('6호', '25'),
+    ('8호', '30'),
+    ('10호', '40'),
+  ];
+
   // 무게: 오즈(oz) → 그람(g), 1 oz = 28.3495 g. 봉돌·루어 무게.
   static const List<(String, String)> _weight = [
     ('1/32', '0.9'),
@@ -101,6 +133,17 @@ class ReferencePage extends StatelessWidget {
                     subtitle: '찌 부력·봉돌 호수 (1호 = 3.75 g)',
                     tables: [
                       _TableSpec(leftUnit: '호', rightUnit: 'g', cells: _sinker),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  _ConvCard(
+                    title: '낚싯줄 (호수 > mm·lb)',
+                    subtitle: '줄 굵기·강도 (나일론 기준, lb는 근사)',
+                    tables: [
+                      _TableSpec(
+                          leftUnit: '호', rightUnit: 'mm', cells: _lineMm),
+                      _TableSpec(
+                          leftUnit: '호', rightUnit: 'lb', cells: _lineLb),
                     ],
                   ),
                   const SizedBox(height: 14),
