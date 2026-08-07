@@ -296,7 +296,7 @@ class _MapViewPageState extends State<MapViewPage>
               if (ready)
                 _overlay((cam) =>
                     _FillPainter(cam, field.points, _hour, _layer, _seaFlags)),
-              // 1.5) 해안선을 데이터 위에 다시 그려 한반도 윤곽을 또렷하게
+              // 1.5) 해안선을 데이터 위에 얇고 은은하게 얹어 윤곽만 살린다
               if (_land.isNotEmpty)
                 PolygonLayer(
                   polygons: [
@@ -304,8 +304,8 @@ class _MapViewPageState extends State<MapViewPage>
                       Polygon(
                         points: ring,
                         color: Colors.transparent,
-                        borderColor: _coastLine,
-                        borderStrokeWidth: 1.3,
+                        borderColor: _coastLine.withValues(alpha: 0.4),
+                        borderStrokeWidth: 0.6,
                       ),
                   ],
                 ),
